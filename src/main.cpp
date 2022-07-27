@@ -24,7 +24,7 @@ long prevGAS = 0;
 #define MAXLINELENGTH 128 // longest normal line is 47 char (+3 for \r\n\0)
 char telegram[MAXLINELENGTH];
 
-int rxPin = 3;           // pin for SoftwareSerial RX
+int rxPin = 0;           // pin for SoftwareSerial RX
 SoftwareSerial mySerial; /*(rxPin, -1, false, MAXLINELENGTH); // (RX, TX. inverted, buffer)*/
 
 unsigned int currentCRC = 0;
@@ -65,7 +65,7 @@ void setup()
   Serial.begin(115200);
   Serial.println("Booting");
 
-  mySerial.begin(115200, SWSERIAL_8N1, rxPin, -1, true);
+  mySerial.begin(115200, SWSERIAL_8N1, rxPin, -1, false);
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
@@ -153,8 +153,10 @@ bool decodeTelegram(int len)
     currentCRC = CRC16(0x0000, (unsigned char *)telegram + startChar, len - startChar);
     if (outputOnSerial)
     {
-      for (int cnt = startChar; cnt < len - startChar; cnt++)
+      for (int cnt = startChar; cnt < len - startChar; cnt++) {
         Serial.print(telegram[cnt]);
+        sendHTTP(String(telegram[cnt]));
+      }
     }
     // Serial.println("Start found!");
   }
@@ -171,10 +173,14 @@ bool decodeTelegram(int len)
         Serial.print(telegram[cnt]);
     }
     validCRCFound = (strtol(messageCRC, NULL, 16) == currentCRC);
-    if (validCRCFound)
+    if (validCRCFound) {
       Serial.println("\nVALID CRC FOUND!");
-    else
+      sendHTTP("\nVALID CRC FOUND!");
+    }
+    else {
       Serial.println("\n===INVALID CRC FOUND!===");
+      sendHTTP("===INVALID CRC FOUND!===");
+    }
     currentCRC = 0;
   }
   else
@@ -182,8 +188,10 @@ bool decodeTelegram(int len)
     currentCRC = CRC16(currentCRC, (unsigned char *)telegram, len);
     if (outputOnSerial)
     {
-      for (int cnt = 0; cnt < len; cnt++)
+      for (int cnt = 0; cnt < len; cnt++) {
         Serial.print(telegram[cnt]);
+        sendHTTP(String(telegram[cnt]));
+      }
     }
   }
 
@@ -230,6 +238,7 @@ void readTelegram()
 {
   if (mySerial.available())
   {
+    sendHTTP("mySerial.available() was true!");
     memset(telegram, 0, sizeof(telegram));
     while (mySerial.available())
     {
