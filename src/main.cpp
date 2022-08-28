@@ -36,7 +36,7 @@ void sendHTTP(String data)
   WiFiClient client;
   HTTPClient http;
 
-  String serverPath = "http://192.168.68.76:3000/echo";
+  String serverPath = "http://192.168.68.68:3000/echo";
 
   // Your Domain name with URL path or IP address with path
   http.begin(client, serverPath.c_str());
