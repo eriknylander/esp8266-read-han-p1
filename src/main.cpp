@@ -21,7 +21,7 @@ long mEAT = 0;  // Meter reading Electrics - Actual return
 long mGAS = 0;  // Meter reading Gas
 long prevGAS = 0;
 
-#define MAXLINELENGTH 128 // longest normal line is 47 char (+3 for \r\n\0)
+#define MAXLINELENGTH 4096 // longest normal line is 47 char (+3 for \r\n\0)
 char telegram[MAXLINELENGTH];
 
 int rxPin = 0;           // pin for SoftwareSerial RX
@@ -238,22 +238,27 @@ void readTelegram()
 {
   if (mySerial.available())
   {
-    sendHTTP("mySerial.available() was true!");
+    // sendHTTP("mySerial.available() was true!");
+    Serial.println("Message available");
     memset(telegram, 0, sizeof(telegram));
     while (mySerial.available())
     {
-      int len = mySerial.readBytesUntil('\n', telegram, MAXLINELENGTH);
-      telegram[len] = '\n';
-      telegram[len + 1] = 0;
-      yield();
-      if (decodeTelegram(len + 1))
-      {
-        sendHTTP("decoded telegram");
-        char buffer[1024];
-        snprintf(buffer, 1024, "mEAV:%d", mEAV);
-        sendHTTP(String(buffer));
+      int len = mySerial.read(telegram, MAXLINELENGTH);
+      for (int i = 0; i < len; i++) {
+        Serial.printf("%02x", telegram[i]);
       }
+      // telegram[len] = '\n';
+      // telegram[len + 1] = 0;
+      // yield();
+      // if (decodeTelegram(len + 1))
+      // {
+      //   sendHTTP("decoded telegram");
+      //   char buffer[1024];
+      //   snprintf(buffer, 1024, "mEAV:%d", mEAV);
+      //   sendHTTP(String(buffer));
+      // }
     }
+    Serial.printf("\n\n\n\n");
   }
 }
 
