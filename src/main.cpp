@@ -6,9 +6,19 @@
 #include <WiFiClient.h>
 #include "CRC16.h"
 #include <cstdlib>
+#include <PubSubClient.h>
 
-const char *ssid = "---------";
-const char *password = "---------";
+// WiFi
+const char *ssid = "----";
+const char *password = "--";
+
+// Mosquitto broker
+const char* mosquittoHost="raspberry-ip";
+const int mosquittoPort=1883;
+const char* mosquittoTopic="home/power/usage";
+
+WiFiClient espClient;
+PubSubClient client(espClient);
 
 #define MAXLINELENGTH 128 // longest normal line is 47 char (+3 for \r\n\0)
 char telegram[MAXLINELENGTH];
@@ -16,33 +26,12 @@ char telegram[MAXLINELENGTH];
 double mTotal = 0.0;
 double mActive = 0.0;
 
-void sendHTTP(String data)
-{
-  WiFiClient client;
-  HTTPClient http;
-
-  String serverPath = "http://192.168.0.3:3000/echo";
-
-  // Your Domain name with URL path or IP address with path
-  http.begin(client, serverPath.c_str());
-
-  // Send HTTP GET request
-  int httpResponseCode = http.POST(data);
-
-  if (httpResponseCode > 0)
-  {
-    Serial.print("HTTP Response code: ");
-    Serial.println(httpResponseCode);
-    String payload = http.getString();
-    Serial.println(payload);
-  }
-  else
-  {
-    Serial.print("Error code: ");
-    Serial.println(httpResponseCode);
-  }
-  // Free resources
-  http.end();
+void updateMeterData() {
+  char message[128];
+  sprintf(message, "{\"mTotal\": %.3f,\"mActive\": %.3f}", mTotal, mActive);
+  
+  // Publish
+  client.publish(mosquittoTopic, message);
 }
 
 void setup()
@@ -64,7 +53,20 @@ void setup()
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 
-  sendHTTP("ESP8266 connected");
+  //connecting to a mqtt broker
+  client.setServer(mosquittoHost, mosquittoPort);
+
+  String client_id = "esp8266-client";
+  client_id += String(WiFi.macAddress());
+  while(!client.connected()) {
+    if(client.connect(client_id.c_str())) {
+      Serial.println("Connected to Mosquitto broker");
+    } else {
+      Serial.print("Failed with state ");
+      Serial.println(client.state());
+      delay(200);
+    }
+  }
 }
 
 int indexOfChar(char *raw, char target)
@@ -124,9 +126,10 @@ void readTelegram()
 
       if (decodeTelegram(raw))
       {
-        Serial.println("Decoded message");
-        Serial.printf("mTotal: %f\n", mTotal);
-        Serial.printf("mActive: %f\n", mActive);
+        // Serial.println("Decoded message");
+        // Serial.printf("mTotal: %f\n", mTotal);
+        // Serial.printf("mActive: %f\n", mActive);
+        updateMeterData();
       }
     }
   }
